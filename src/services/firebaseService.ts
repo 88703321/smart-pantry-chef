@@ -94,6 +94,42 @@ export const deleteInventoryItem = async (id: string): Promise<void> => {
   await deleteDoc(doc(db, 'inventory', id));
 };
 
+// ============ PRODUCT OPERATIONS ============
+
+export const getProducts = async (userId: string): Promise<any[]> => {
+  // Fetch products created by the user
+  const q1 = query(collection(db, 'products'), where('createdBy', '==', userId));
+  const snap1 = await getDocs(q1);
+
+  // Fetch generic manual products (source == 'manual')
+  const q2 = query(collection(db, 'products'), where('source', '==', 'manual'));
+  const snap2 = await getDocs(q2);
+
+  const map = new Map<string, any>();
+  snap1.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+  snap2.docs.forEach(d => { if (!map.has(d.id)) map.set(d.id, { id: d.id, ...d.data() }); });
+
+  return Array.from(map.values());
+};
+
+export const createProduct = async (product: { name: string; brand?: string; category: string; barcode?: string; defaultShelfLifeDays?: number; source?: string; createdBy?: string; }): Promise<string> => {
+  const data: any = {
+    name: product.name,
+  };
+  if (product.brand !== undefined) data.brand = product.brand;
+  if (product.category !== undefined) data.category = product.category;
+  if (product.barcode !== undefined) data.barcode = product.barcode;
+  if (typeof product.defaultShelfLifeDays === 'number' && !isNaN(product.defaultShelfLifeDays)) {
+    data.defaultShelfLifeDays = product.defaultShelfLifeDays;
+  }
+  data.source = product.source || 'manual';
+  data.createdBy = product.createdBy || 'system';
+  data.createdAt = Timestamp.now();
+
+  const docRef = await addDoc(collection(db, 'products'), data);
+  return docRef.id;
+};
+
 // ============ RECIPE OPERATIONS ============
 
 export const getRecipes = async (): Promise<Recipe[]> => {

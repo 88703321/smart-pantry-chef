@@ -15,6 +15,9 @@ export interface Product {
   category: string;
   barcode?: string;
   defaultShelfLifeDays?: number;
+  source?: 'manual' | 'openfoodfacts' | 'system';
+  createdBy?: string; // uid or "system"
+  createdAt?: Timestamp;
 }
 
 export interface InventoryItem {
