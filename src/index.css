@@ -2,95 +2,128 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Fredoka:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Kitchen-themed color palette */
+    --background: 60 10% 96%;
+    --foreground: 30 20% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 30 20% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 30 20% 20%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Warm terracotta primary */
+    --primary: 18 70% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Soft sage secondary */
+    --secondary: 120 25% 92%;
+    --secondary-foreground: 120 30% 30%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 40 20% 94%;
+    --muted-foreground: 30 15% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Warm wood accent */
+    --accent: 35 45% 75%;
+    --accent-foreground: 30 25% 25%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 35 25% 88%;
+    --input: 35 25% 88%;
+    --ring: 18 70% 55%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Kitchen status colors */
+    --fresh: 135 50% 45%;
+    --fresh-bg: 135 50% 92%;
+    --expiring: 45 95% 60%;
+    --expiring-bg: 45 95% 92%;
+    --expired: 0 72% 55%;
+    --expired-bg: 0 72% 92%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Storage colors */
+    --fridge: 200 70% 55%;
+    --fridge-bg: 200 70% 94%;
+    --freezer: 195 85% 65%;
+    --freezer-bg: 195 85% 94%;
+    --pantry: 35 55% 65%;
+    --pantry-bg: 35 55% 94%;
 
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Wood and tile textures */
+    --wood: 35 45% 75%;
+    --tile: 60 10% 96%;
+    
+    --sidebar-background: 35 30% 97%;
+    --sidebar-foreground: 30 20% 25%;
+    --sidebar-primary: 18 70% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 35 45% 90%;
+    --sidebar-accent-foreground: 30 25% 25%;
+    --sidebar-border: 35 25% 88%;
+    --sidebar-ring: 18 70% 55%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 30 15% 12%;
+    --foreground: 40 20% 95%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 30 15% 16%;
+    --card-foreground: 40 20% 95%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 30 15% 16%;
+    --popover-foreground: 40 20% 95%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 18 70% 55%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 30 15% 22%;
+    --secondary-foreground: 40 20% 90%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 30 15% 22%;
+    --muted-foreground: 40 15% 60%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 35 35% 30%;
+    --accent-foreground: 40 20% 95%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --border: 30 15% 25%;
+    --input: 30 15% 25%;
+    --ring: 18 70% 55%;
+
+    --fresh: 135 50% 50%;
+    --fresh-bg: 135 40% 20%;
+    --expiring: 45 90% 55%;
+    --expiring-bg: 45 60% 20%;
+    --expired: 0 70% 55%;
+    --expired-bg: 0 50% 20%;
+
+    --fridge: 200 65% 55%;
+    --fridge-bg: 200 50% 20%;
+    --freezer: 195 80% 60%;
+    --freezer-bg: 195 60% 20%;
+    --pantry: 35 50% 55%;
+    --pantry-bg: 35 40% 20%;
+
+    --wood: 35 35% 30%;
+    --tile: 30 15% 14%;
+
+    --sidebar-background: 30 15% 14%;
+    --sidebar-foreground: 40 20% 90%;
+    --sidebar-primary: 18 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 30 15% 22%;
+    --sidebar-accent-foreground: 40 20% 90%;
+    --sidebar-border: 30 15% 25%;
+    --sidebar-ring: 18 70% 55%;
   }
 }
 
@@ -100,6 +133,110 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Nunito', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Fredoka', sans-serif;
+  }
+}
+
+@layer components {
+  /* Kitchen tile pattern background */
+  .kitchen-bg {
+    background-color: hsl(var(--tile));
+    background-image: 
+      linear-gradient(45deg, hsl(var(--border)) 25%, transparent 25%),
+      linear-gradient(-45deg, hsl(var(--border)) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, hsl(var(--border)) 75%),
+      linear-gradient(-45deg, transparent 75%, hsl(var(--border)) 75%);
+    background-size: 40px 40px;
+    background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
+    opacity: 0.5;
+  }
+
+  /* Fridge magnet card style */
+  .magnet-card {
+    @apply rounded-2xl shadow-lg transition-all duration-300;
+    background: hsl(var(--card));
+    box-shadow: 
+      0 4px 6px -1px rgba(0, 0, 0, 0.1),
+      0 2px 4px -1px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+
+  .magnet-card:hover {
+    transform: translateY(-2px) rotate(0.5deg);
+    box-shadow: 
+      0 10px 15px -3px rgba(0, 0, 0, 0.1),
+      0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Pantry label style */
+  .pantry-label {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+    background: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Status badges */
+  .status-fresh {
+    background: hsl(var(--fresh-bg));
+    color: hsl(var(--fresh));
+    border: 1px solid hsl(var(--fresh) / 0.3);
+  }
+
+  .status-expiring {
+    background: hsl(var(--expiring-bg));
+    color: hsl(var(--expiring));
+    border: 1px solid hsl(var(--expiring) / 0.3);
+  }
+
+  .status-expired {
+    background: hsl(var(--expired-bg));
+    color: hsl(var(--expired));
+    border: 1px solid hsl(var(--expired) / 0.3);
+  }
+
+  /* Storage tabs */
+  .storage-fridge {
+    background: hsl(var(--fridge-bg));
+    color: hsl(var(--fridge));
+    border-bottom: 3px solid hsl(var(--fridge));
+  }
+
+  .storage-freezer {
+    background: hsl(var(--freezer-bg));
+    color: hsl(var(--freezer));
+    border-bottom: 3px solid hsl(var(--freezer));
+  }
+
+  .storage-pantry {
+    background: hsl(var(--pantry-bg));
+    color: hsl(var(--pantry));
+    border-bottom: 3px solid hsl(var(--pantry));
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .animate-wiggle {
+    animation: wiggle 0.5s ease-in-out;
+  }
+
+  @keyframes wiggle {
+    0%, 100% { transform: rotate(0deg); }
+    25% { transform: rotate(-3deg); }
+    75% { transform: rotate(3deg); }
   }
 }
