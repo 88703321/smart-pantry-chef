@@ -400,12 +400,22 @@ const StoreLocator: React.FC = () => {
     return R * c;
   };
 
+  const getEstimatedTravelTime = (distanceKm: number) => {
+    // Average walking speed: 5 km/h, driving speed: 30 km/h
+    const walkingMinutes = Math.round((distanceKm / 5) * 60);
+    const drivingMinutes = Math.round((distanceKm / 30) * 60);
+
+    return {
+      walking: walkingMinutes < 60 ? `${walkingMinutes} min walk` : `${Math.round(walkingMinutes/60)}h ${walkingMinutes%60}min walk`,
+      driving: drivingMinutes < 60 ? `${drivingMinutes} min drive` : `${Math.round(drivingMinutes/60)}h ${drivingMinutes%60}min drive`
+    };
+  };
+
   const openInGoogleMaps = (store: NearbyStore) => {
-    const destination = `${store.location.latitude},${store.location.longitude}`;
+    // Navigate with directions from user location to store
     const origin = userLocation ? `${userLocation.lat},${userLocation.lng}` : '';
-    const url = origin 
-      ? `https://www.google.com/maps/dir/${origin}/${destination}`
-      : `https://www.google.com/maps/search/?api=1&query=${destination}`;
+    const destination = `${store.location.latitude},${store.location.longitude}`;
+    const url = `https://www.google.com/maps/dir/${origin}/${destination}`;
     window.open(url, '_blank');
   };
 
@@ -518,11 +528,16 @@ const StoreLocator: React.FC = () => {
                           <div>
                             <p className="font-medium text-foreground">{store.displayName.text}</p>
                             <p className="text-xs text-muted-foreground">{store.formattedAddress}</p>
-                            {userLocation && (
-                              <p className="text-xs text-muted-foreground">
-                                {calculateDistance(userLocation.lat, userLocation.lng, store.location.latitude, store.location.longitude).toFixed(1)} km away
-                              </p>
-                            )}
+                            {userLocation && (() => {
+                              const distance = calculateDistance(userLocation.lat, userLocation.lng, store.location.latitude, store.location.longitude);
+                              const travelTimes = getEstimatedTravelTime(distance);
+                              return (
+                                <div className="text-xs text-muted-foreground space-y-1">
+                                  <p>{distance.toFixed(1)} km away</p>
+                                  <p>🚶 {travelTimes.walking} • 🚗 {travelTimes.driving}</p>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                         <Button 
@@ -579,11 +594,16 @@ const StoreLocator: React.FC = () => {
                       <div>
                         <p className="font-medium text-foreground">{store.displayName.text}</p>
                         <p className="text-xs text-muted-foreground">{store.formattedAddress}</p>
-                        {userLocation && (
-                          <p className="text-xs text-muted-foreground">
-                            {calculateDistance(userLocation.lat, userLocation.lng, store.location.latitude, store.location.longitude).toFixed(1)} km away
-                          </p>
-                        )}
+                        {userLocation && (() => {
+                          const distance = calculateDistance(userLocation.lat, userLocation.lng, store.location.latitude, store.location.longitude);
+                          const travelTimes = getEstimatedTravelTime(distance);
+                          return (
+                            <div className="text-xs text-muted-foreground space-y-1">
+                              <p>{distance.toFixed(1)} km away</p>
+                              <p>🚶 {travelTimes.walking} • 🚗 {travelTimes.driving}</p>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                     <Button 
