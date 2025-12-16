@@ -301,7 +301,7 @@ const StoreLocator: React.FC = () => {
       );
       
       if (!isInHKSg) {
-        throw new Error('Nearby search is only available in Hong Kong and Singapore. Please use the area search instead.');
+        throw new Error('Nearby search is only available in Singapore. Please use the area search instead.');
       }
       
       const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
@@ -379,7 +379,7 @@ const StoreLocator: React.FC = () => {
       setNearbyStores(filteredStores);
 
       if (!filteredStores || filteredStores.length === 0) {
-        setNearbyError('No nearby stores found in Hong Kong or Singapore within 8km. Try using the area search instead.');
+        setNearbyError('No nearby stores found in Singapore within 8km. Try using the area search instead.');
       }
     } catch (error) {
       console.error('Error finding nearby stores:', error);
@@ -422,7 +422,7 @@ const StoreLocator: React.FC = () => {
       {/* Header */}
       <div>
         <h1 className="font-display text-3xl font-bold text-foreground">Store Locator</h1>
-        <p className="text-muted-foreground">Find stores in Hong Kong and Singapore</p>
+        <p className="text-muted-foreground">Find stores in Singapore</p>
       </div>
 
       {/* Search Card */}
