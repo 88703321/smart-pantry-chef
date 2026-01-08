@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Recipes from "./pages/Recipes";
 import Favourites from "./pages/Favourites";
+import ShoppingList from "./pages/ShoppingList";
 import StoreLocator from "./pages/StoreLocator";
 import NotFound from "./pages/NotFound";
 
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/recipes" element={<Recipes />} />
               <Route path="/favourites" element={<Favourites />} />
+              <Route path="/shopping-list" element={<ShoppingList />} />
               <Route path="/store-locator" element={<StoreLocator />} />
             </Route>
             

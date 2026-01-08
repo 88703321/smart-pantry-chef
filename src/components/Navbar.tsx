@@ -15,6 +15,7 @@ import {
   Package, 
   UtensilsCrossed, 
   Heart, 
+  ShoppingCart,
   MapPin,
   User,
   LogOut,
@@ -26,6 +27,7 @@ const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/inventory', label: 'Inventory', icon: Package },
   { path: '/recipes', label: 'Recipes', icon: UtensilsCrossed },
+  { path: '/shopping-list', label: 'Shopping', icon: ShoppingCart },
   { path: '/favourites', label: 'Favorite', icon: Heart },
   { path: '/store-locator', label: 'Stores', icon: MapPin },
 ];
