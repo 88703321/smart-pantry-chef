@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Timestamp } from 'firebase/firestore';
 import { 
@@ -36,6 +37,8 @@ const StoreLocator: React.FC = () => {
   const [showOpenOnly, setShowOpenOnly] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedStoreType, setSelectedStoreType] = useState('all');
+  const [selectedMapStore, setSelectedMapStore] = useState<NearbyStore | null>(null);
+  const [showMapModal, setShowMapModal] = useState(false);
 
   // Get initial search from navigation state
   const initialSearch = (location.state as { searchItem?: string })?.searchItem || '';
@@ -412,11 +415,20 @@ const StoreLocator: React.FC = () => {
   };
 
   const openInGoogleMaps = (store: NearbyStore) => {
-    // Navigate with directions from user location to store
-    const origin = userLocation ? `${userLocation.lat},${userLocation.lng}` : '';
-    const destination = `${store.location.latitude},${store.location.longitude}`;
-    const url = `https://www.google.com/maps/dir/${origin}/${destination}`;
-    window.open(url, '_blank');
+    // Set the store for modal and show map
+    setSelectedMapStore(store);
+    setShowMapModal(true);
+  };
+
+  const getMapEmbedUrl = (store: NearbyStore): string => {
+    // Using Google Maps Embed API URL
+    const lat = store.location.latitude;
+    const lng = store.location.longitude;
+    const query = encodeURIComponent(store.displayName.text);
+    const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+    
+    // Using Maps Embed API
+    return `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(store.displayName.text)}+${encodeURIComponent(store.formattedAddress)}`;
   };
 
   if (loading) {
@@ -653,6 +665,72 @@ const StoreLocator: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Map Modal */}
+      <Dialog open={showMapModal} onOpenChange={setShowMapModal}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              {selectedMapStore?.displayName.text}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedMapStore && (
+            <div className="space-y-4">
+              {/* Store Info */}
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <p className="text-sm text-foreground mb-2">
+                  <strong>Address:</strong> {selectedMapStore.formattedAddress}
+                </p>
+                {selectedMapStore.rating && (
+                  <p className="text-sm text-foreground mb-2">
+                    <strong>Rating:</strong> ⭐ {selectedMapStore.rating}
+                  </p>
+                )}
+                {selectedMapStore.currentOpeningHours?.openNow !== undefined && (
+                  <p className="text-sm text-foreground">
+                    <strong>Status:</strong>{' '}
+                    <Badge variant={selectedMapStore.currentOpeningHours.openNow ? 'default' : 'secondary'} className="ml-1">
+                      {selectedMapStore.currentOpeningHours.openNow ? 'Open now' : 'Closed'}
+                    </Badge>
+                  </p>
+                )}
+              </div>
+
+              {/* Embedded Map */}
+              <div className="rounded-lg overflow-hidden border">
+                <iframe
+                  title={selectedMapStore.displayName.text}
+                  width="100%"
+                  height="500"
+                  frameBorder={0}
+                  src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_PLACES_API_KEY}&q=${encodeURIComponent(selectedMapStore.displayName.text)}+${encodeURIComponent(selectedMapStore.formattedAddress)}`}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+
+              {/* Directions Link */}
+              <div className="flex gap-2">
+                <Button 
+                  className="flex-1"
+                  onClick={() => {
+                    const origin = userLocation ? `${userLocation.lat},${userLocation.lng}` : '';
+                    const destination = `${selectedMapStore.location.latitude},${selectedMapStore.location.longitude}`;
+                    const url = `https://www.google.com/maps/dir/${origin}/${destination}`;
+                    window.open(url, '_blank');
+                  }}
+                >
+                  <Navigation className="mr-2 h-4 w-4" />
+                  Get Directions (Opens Google Maps)
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
