@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { getStores } from '@/services/firebaseService';
-import { Store, NearbyStore } from '@/types';
+import { NearbyStore } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { 
   MapPin, 
@@ -15,16 +16,22 @@ import {
   ShoppingCart,
   Navigation,
 } from 'lucide-react';
+
+interface ProductSearchResult {
+  supermarket: string;
+  title: string;
+  price: string;
+  measurement: string;
+  link: string;
+}
 import StoreCard from '@/components/StoreCard';
 import Filters from '@/components/Filters';
-import InAppMap from '@/components/InAppMap';
 
 const StoreLocator: React.FC = () => {
   const location = useLocation();
   const { toast } = useToast();
-  const [stores, setStores] = useState<Store[]>([]);
   const [results, setResults] = useState<NearbyStore[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [selectedArea, setSelectedArea] = useState('');
   const [nearbyStores, setNearbyStores] = useState<NearbyStore[]>([]);
@@ -34,13 +41,13 @@ const StoreLocator: React.FC = () => {
   const [selectedStoreType, setSelectedStoreType] = useState('all');
   const [distanceFilter, setDistanceFilter] = useState('all');
   const [ratingFilter, setRatingFilter] = useState('all');
-  const [selectedStoreForMap, setSelectedStoreForMap] = useState<NearbyStore | null>(null);
-  const [isMapOpen, setIsMapOpen] = useState(false);
+  const [selectedMapStore, setSelectedMapStore] = useState<NearbyStore | null>(null);
+  const [showMapModal, setShowMapModal] = useState(false);
 
   // Product search state
-  const [productResults, setProductResults] = useState<any[]>([]);
+  const [productResults, setProductResults] = useState<ProductSearchResult[]>([]);
   const [chainsWithItem, setChainsWithItem] = useState<string[]>([]);
-  const [nearestByChain, setNearestByChain] = useState<Record<string, google.maps.places.PlaceResult | null>>({});
+  const [nearestByChain, setNearestByChain] = useState<Record<string, NearbyStore | null>>({});
   const [productSearchLoading, setProductSearchLoading] = useState(false);
 
   // Get initial search from navigation state
@@ -59,52 +66,10 @@ const StoreLocator: React.FC = () => {
   };
 
   useEffect(() => {
-    loadStores();
-  }, []);
-
-  const loadStores = async () => {
-    try {
-      const storesData = await getStores();
-      setStores(storesData);
-    } catch (error) {
-      console.error('Error loading stores:', error);
-    } finally {
-      setLoading(false);
+    if (initialSearch && !productSearchLoading && productResults.length === 0) {
+      searchProducts(initialSearch);
     }
-  };
-
-  // Filtered results
-  const filteredResults = useMemo(() => {
-    return results.filter(store => {
-      // Block specific non-store results
-      if (store.displayName.text === 'Yen Investments Pte. Ltd.' || 
-          store.formattedAddress.includes('304 Woodlands Street 31, Singapore 730304')) {
-        return false;
-      }
-
-      // Distance filter - only apply if userLocation exists
-      if (distanceFilter !== 'all' && userLocation) {
-        const distance = calculateDistance(userLocation.lat, userLocation.lng, store.location.latitude, store.location.longitude);
-        if (distance > parseInt(distanceFilter)) return false;
-      }
-      // If no user location, distance filter is ignored (show all results)
-
-      // Rating filter
-      if (ratingFilter !== 'all') {
-        if (!store.rating) return false;
-        
-        if (ratingFilter === '4.0') {
-          if (store.rating < 4.0) return false;
-        } else if (ratingFilter === '3.0') {
-          if (store.rating < 3.0 || store.rating >= 4.0) return false;
-        } else if (ratingFilter === 'below3') {
-          if (store.rating >= 3.0) return false;
-        }
-      }
-
-      return true;
-    });
-  }, [results, distanceFilter, ratingFilter, userLocation]);
+  }, [initialSearch]);
 
   const filteredNearbyStores = useMemo(() => {
     return nearbyStores.filter(store => {
@@ -137,6 +102,38 @@ const StoreLocator: React.FC = () => {
       return true;
     });
   }, [nearbyStores, distanceFilter, ratingFilter, userLocation]);
+
+  const filteredResults = useMemo(() => {
+    return results.filter(store => {
+      // Block specific non-store results
+      if (store.displayName.text === 'Yen Investments Pte. Ltd.' ||
+          store.formattedAddress.includes('304 Woodlands Street 31, Singapore 730304')) {
+        return false;
+      }
+
+      // Distance filter - only apply if userLocation exists
+      if (distanceFilter !== 'all' && userLocation) {
+        const distance = calculateDistance(userLocation.lat, userLocation.lng, store.location.latitude, store.location.longitude);
+        if (distance > parseInt(distanceFilter)) return false;
+      }
+      // If no user location, distance filter is ignored (show all results)
+
+      // Rating filter
+      if (ratingFilter !== 'all') {
+        if (!store.rating) return false;
+
+        if (ratingFilter === '4.0') {
+          if (store.rating < 4.0) return false;
+        } else if (ratingFilter === '3.0') {
+          if (store.rating < 3.0 || store.rating >= 4.0) return false;
+        } else if (ratingFilter === 'below3') {
+          if (store.rating >= 3.0) return false;
+        }
+      }
+
+      return true;
+    });
+  }, [results, distanceFilter, ratingFilter, userLocation]);
 
   const handleSearch = async () => {
     if (!selectedArea.trim()) {
@@ -484,8 +481,9 @@ const StoreLocator: React.FC = () => {
   };
 
   const openInGoogleMaps = (store: NearbyStore) => {
-    setSelectedStoreForMap(store);
-    setIsMapOpen(true);
+    // Set the store for modal and show map
+    setSelectedMapStore(store);
+    setShowMapModal(true);
   };
 
   // Chain display names mapping
@@ -499,10 +497,8 @@ const StoreLocator: React.FC = () => {
   const searchProducts = async (query: string) => {
     setProductSearchLoading(true);
     try {
-      const n8nWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
-      if (!n8nWebhookUrl) {
-        throw new Error('N8N webhook URL not configured');
-      }
+      // Use environment variable or fallback to local development server
+      const n8nWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL || 'http://localhost:3000/search-products';
 
       const response = await fetch(n8nWebhookUrl, {
         method: 'POST',
@@ -517,12 +513,12 @@ const StoreLocator: React.FC = () => {
       }
 
       const data = await response.json();
-      const results = data.results || [];
+      const results: ProductSearchResult[] = data.results || [];
 
       setProductResults(results);
 
       // Extract unique chains that have this item
-      const chains = Array.from(new Set(results.map((r: any) => r.supermarket)));
+      const chains = Array.from(new Set(results.map((r: ProductSearchResult) => r.supermarket)));
       setChainsWithItem(chains);
 
       // If we have user location and chains, find nearest stores for each chain
@@ -556,7 +552,7 @@ const StoreLocator: React.FC = () => {
       return;
     }
 
-    const newNearestByChain: Record<string, google.maps.places.PlaceResult | null> = {};
+    const newNearestByChain: Record<string, NearbyStore | null> = {};
 
     for (const chainId of chains) {
       try {
@@ -605,20 +601,7 @@ const StoreLocator: React.FC = () => {
     setNearestByChain(newNearestByChain);
   };
 
-  // Effect to search for products when component mounts with searchItem
-  useEffect(() => {
-    if (initialSearch && !productSearchLoading && productResults.length === 0) {
-      searchProducts(initialSearch);
-    }
-  }, [initialSearch]);
 
-  if (loading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -675,6 +658,25 @@ const StoreLocator: React.FC = () => {
                 )}
               </Button>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Find Nearby Stores Button */}
+      <Card className="magnet-card">
+        <CardContent className="pt-6">
+          <div className="text-center">
+            <Button onClick={handleFindNearbyStores} disabled={nearbyLoading} size="lg" className="w-full sm:w-auto">
+              {nearbyLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+              ) : (
+                <MapPin className="h-5 w-5 mr-2" />
+              )}
+              Find Stores Near Me
+            </Button>
+            {nearbyError && (
+              <p className="text-sm text-destructive mt-2">{nearbyError}</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -923,13 +925,86 @@ const StoreLocator: React.FC = () => {
         </div>
       </div>
 
-      {/* In-App Map Modal */}
-      <InAppMap
-        isOpen={isMapOpen}
-        onClose={() => setIsMapOpen(false)}
-        store={selectedStoreForMap}
-        userLocation={userLocation}
-      />
+      {/* Empty State */}
+      {results.length === 0 && !searching && (
+        <Card className="magnet-card">
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+              <ShoppingCart className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <h3 className="mb-2 font-display text-xl font-semibold">Find stores in Singapore</h3>
+            <p className="text-center text-muted-foreground">
+              Select a store type (All = Supermarkets + Convenience stores) and enter an area in Singapore to find more stores nearby.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Map Modal */}
+      <Dialog open={showMapModal} onOpenChange={setShowMapModal}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5" />
+              {selectedMapStore?.displayName.text}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedMapStore && (
+            <div className="space-y-4">
+              {/* Store Info */}
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <p className="text-sm text-foreground mb-2">
+                  <strong>Address:</strong> {selectedMapStore.formattedAddress}
+                </p>
+                {selectedMapStore.rating && (
+                  <p className="text-sm text-foreground mb-2">
+                    <strong>Rating:</strong> ⭐ {selectedMapStore.rating}
+                  </p>
+                )}
+                {selectedMapStore.currentOpeningHours?.openNow !== undefined && (
+                  <p className="text-sm text-foreground">
+                    <strong>Status:</strong>{' '}
+                    <Badge variant={selectedMapStore.currentOpeningHours.openNow ? 'default' : 'secondary'} className="ml-1">
+                      {selectedMapStore.currentOpeningHours.openNow ? 'Open now' : 'Closed'}
+                    </Badge>
+                  </p>
+                )}
+              </div>
+
+              {/* Embedded Map */}
+              <div className="rounded-lg overflow-hidden border">
+                <iframe
+                  title={selectedMapStore.displayName.text}
+                  width="100%"
+                  height="500"
+                  frameBorder={0}
+                  src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_PLACES_API_KEY}&q=${encodeURIComponent(selectedMapStore.displayName.text)}+${encodeURIComponent(selectedMapStore.formattedAddress)}`}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+
+              {/* Directions Link */}
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    const origin = userLocation ? `${userLocation.lat},${userLocation.lng}` : '';
+                    const destination = `${selectedMapStore.location.latitude},${selectedMapStore.location.longitude}`;
+                    const url = `https://www.google.com/maps/dir/${origin}/${destination}`;
+                    window.open(url, '_blank');
+                  }}
+                >
+                  <Navigation className="mr-2 h-4 w-4" />
+                  Get Directions (Opens Google Maps)
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
