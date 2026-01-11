@@ -13,6 +13,7 @@ import {
   Search, 
   Loader2,
   ShoppingCart,
+  Navigation,
 } from 'lucide-react';
 import StoreCard from '@/components/StoreCard';
 import Filters from '@/components/Filters';
@@ -35,6 +36,12 @@ const StoreLocator: React.FC = () => {
   const [ratingFilter, setRatingFilter] = useState('all');
   const [selectedStoreForMap, setSelectedStoreForMap] = useState<NearbyStore | null>(null);
   const [isMapOpen, setIsMapOpen] = useState(false);
+
+  // Product search state
+  const [productResults, setProductResults] = useState<any[]>([]);
+  const [chainsWithItem, setChainsWithItem] = useState<string[]>([]);
+  const [nearestByChain, setNearestByChain] = useState<Record<string, google.maps.places.PlaceResult | null>>({});
+  const [productSearchLoading, setProductSearchLoading] = useState(false);
 
   // Get initial search from navigation state
   const initialSearch = (location.state as { searchItem?: string })?.searchItem || '';
@@ -481,6 +488,130 @@ const StoreLocator: React.FC = () => {
     setIsMapOpen(true);
   };
 
+  // Chain display names mapping
+  const CHAIN_DISPLAY_NAME: Record<string, string> = {
+    ntuc: 'NTUC FairPrice',
+    'cold-storage': 'Cold Storage',
+    'sheng-siong': 'Sheng Siong',
+  };
+
+  // Search for products using the backend
+  const searchProducts = async (query: string) => {
+    setProductSearchLoading(true);
+    try {
+      const n8nWebhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
+      if (!n8nWebhookUrl) {
+        throw new Error('N8N webhook URL not configured');
+      }
+
+      const response = await fetch(n8nWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Product search failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const results = data.results || [];
+
+      setProductResults(results);
+
+      // Extract unique chains that have this item
+      const chains = Array.from(new Set(results.map((r: any) => r.supermarket)));
+      setChainsWithItem(chains);
+
+      // If we have user location and chains, find nearest stores for each chain
+      if (userLocation && chains.length > 0) {
+        await findNearestStoresForChains(chains, userLocation);
+      }
+
+      if (results.length === 0) {
+        toast({
+          title: 'No products found',
+          description: `No products found for "${query}". Try a different search term.`,
+        });
+      }
+    } catch (error) {
+      console.error('Product search error:', error);
+      toast({
+        title: 'Search failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setProductSearchLoading(false);
+    }
+  };
+
+  // Find nearest stores for chains using Google Places
+  const findNearestStoresForChains = async (chains: string[], userLatLng: { lat: number; lng: number }) => {
+    const apiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
+    if (!apiKey) {
+      console.error('Google Places API key not configured');
+      return;
+    }
+
+    const newNearestByChain: Record<string, google.maps.places.PlaceResult | null> = {};
+
+    for (const chainId of chains) {
+      try {
+        const displayName = CHAIN_DISPLAY_NAME[chainId];
+        if (!displayName) continue;
+
+        const url = 'https://places.googleapis.com/v1/places:searchText';
+        const requestBody = {
+          textQuery: `${displayName} supermarket`,
+          includedType: "supermarket",
+          maxResultCount: 5,
+          locationRestriction: {
+            circle: {
+              center: {
+                latitude: userLatLng.lat,
+                longitude: userLatLng.lng
+              },
+              radius: 10000.0 // 10km radius
+            }
+          }
+        };
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': apiKey,
+            'X-Goog-FieldMask': 'places.displayName,places.formattedAddress,places.location,places.rating,places.currentOpeningHours'
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const places = result.places || [];
+          // Find the closest one
+          if (places.length > 0) {
+            newNearestByChain[chainId] = places[0];
+          }
+        }
+      } catch (error) {
+        console.error(`Error finding nearest ${chainId} store:`, error);
+      }
+    }
+
+    setNearestByChain(newNearestByChain);
+  };
+
+  // Effect to search for products when component mounts with searchItem
+  useEffect(() => {
+    if (initialSearch && !productSearchLoading && productResults.length === 0) {
+      searchProducts(initialSearch);
+    }
+  }, [initialSearch]);
+
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -548,26 +679,130 @@ const StoreLocator: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Nearby Stores Card */}
-      <Card className="magnet-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 font-display">
-            <MapPin className="h-5 w-5" />
-            Nearby Stores
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Button onClick={handleFindNearbyStores} disabled={nearbyLoading}>
-            {nearbyLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+      {/* Product Search Results */}
+      {initialSearch && (
+        <Card className="magnet-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display">
+              <ShoppingCart className="h-5 w-5" />
+              Products for "{initialSearch}"
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {productSearchLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                Searching for products...
+              </div>
+            ) : productResults.length > 0 ? (
+              <div className="space-y-3">
+                {productResults.slice(0, 5).map((product, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div>
+                      <p className="font-medium">{product.title}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {product.price} {product.measurement && `• ${product.measurement}`}
+                      </p>
+                    </div>
+                    {product.link && (
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={product.link} target="_blank" rel="noopener noreferrer">
+                          View
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {productResults.length > 5 && (
+                  <p className="text-sm text-muted-foreground text-center">
+                    And {productResults.length - 5} more products found
+                  </p>
+                )}
+              </div>
             ) : (
-              <MapPin className="mr-2 h-4 w-4" />
+              <p className="text-muted-foreground text-center py-4">
+                No products found for "{initialSearch}"
+              </p>
             )}
-            Use my location
-          </Button>
-          {nearbyError && <p className="text-destructive">{nearbyError}</p>}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stores with Item */}
+      {chainsWithItem.length > 0 && (
+        <Card className="magnet-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 font-display">
+              <MapPin className="h-5 w-5" />
+              Stores with "{initialSearch}"
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!userLocation && (
+              <Button onClick={handleFindNearbyStores} disabled={nearbyLoading}>
+                {nearbyLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MapPin className="mr-2 h-4 w-4" />
+                )}
+                Use my location to find nearest stores
+              </Button>
+            )}
+            {userLocation && Object.keys(nearestByChain).length > 0 ? (
+              <div className="space-y-3">
+                {chainsWithItem.map((chainId) => {
+                  const store = nearestByChain[chainId];
+                  const displayName = CHAIN_DISPLAY_NAME[chainId] || chainId;
+
+                  if (!store) {
+                    return (
+                      <div key={chainId} className="p-3 border rounded-lg">
+                        <p className="font-medium">{displayName}</p>
+                        <p className="text-sm text-muted-foreground">No nearby store found</p>
+                      </div>
+                    );
+                  }
+
+                  const distance = calculateDistance(
+                    userLocation.lat,
+                    userLocation.lng,
+                    store.location.latitude,
+                    store.location.longitude
+                  );
+
+                  return (
+                    <div key={chainId} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">{store.displayName?.text || displayName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {store.formattedAddress}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {distance.toFixed(1)} km away
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          const url = `https://www.google.com/maps/dir/?api=1&destination=${store.location.latitude},${store.location.longitude}`;
+                          window.open(url, '_blank');
+                        }}
+                      >
+                        <Navigation className="h-4 w-4 mr-1" />
+                        Navigate
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : userLocation ? (
+              <p className="text-muted-foreground text-center py-4">
+                Searching for stores with this item...
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       {(filteredResults.length > 0 || filteredNearbyStores.length > 0) && (
@@ -609,29 +844,81 @@ const StoreLocator: React.FC = () => {
           )}
         </div>
 
-        {/* Right Column: Stores near me */}
+        {/* Right Column: Stores with Item or Stores near me */}
         <div className="space-y-4">
-          <h2 className="font-display text-xl font-semibold">Stores near me</h2>
-          {filteredNearbyStores.length > 0 ? (
-            <div className="grid gap-4 sm:grid-cols-1">
-              {filteredNearbyStores.map((store, idx) => (
-                <StoreCard
-                  key={`nearby-${idx}`}
-                  store={store}
-                  userLocation={userLocation}
-                  onNavigate={openInGoogleMaps}
-                />
-              ))}
-            </div>
+          <h2 className="font-display text-xl font-semibold">
+            {chainsWithItem.length > 0 ? `Stores with "${initialSearch || 'item'}"` : 'Stores near me'}
+          </h2>
+          {chainsWithItem.length > 0 ? (
+            Object.keys(nearestByChain).length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-1">
+                {chainsWithItem.map((chainId) => {
+                  const store = nearestByChain[chainId];
+                  const displayName = CHAIN_DISPLAY_NAME[chainId] || chainId;
+
+                  if (!store) return null;
+
+                  const distance = calculateDistance(
+                    userLocation?.lat || 0,
+                    userLocation?.lng || 0,
+                    store.location.latitude,
+                    store.location.longitude
+                  );
+
+                  // Convert to NearbyStore format for StoreCard
+                  const nearbyStore: NearbyStore = {
+                    displayName: { text: store.displayName?.text || displayName },
+                    formattedAddress: store.formattedAddress || '',
+                    location: {
+                      latitude: store.location.latitude,
+                      longitude: store.location.longitude
+                    },
+                    rating: store.rating,
+                    currentOpeningHours: store.currentOpeningHours
+                  };
+
+                  return (
+                    <StoreCard
+                      key={`chain-${chainId}`}
+                      store={nearbyStore}
+                      userLocation={userLocation}
+                      onNavigate={openInGoogleMaps}
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <Card className="magnet-card">
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-center">
+                    {userLocation ? 'Finding stores with this item...' : 'Use your location to find stores with this item'}
+                  </p>
+                </CardContent>
+              </Card>
+            )
           ) : (
-            <Card className="magnet-card">
-              <CardContent className="flex flex-col items-center justify-center py-8">
-                <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground text-center">
-                  {nearbyError ? nearbyError : 'Use your location to find nearby stores'}
-                </p>
-              </CardContent>
-            </Card>
+            filteredNearbyStores.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-1">
+                {filteredNearbyStores.map((store, idx) => (
+                  <StoreCard
+                    key={`nearby-${idx}`}
+                    store={store}
+                    userLocation={userLocation}
+                    onNavigate={openInGoogleMaps}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Card className="magnet-card">
+                <CardContent className="flex flex-col items-center justify-center py-8">
+                  <MapPin className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-center">
+                    {nearbyError ? nearbyError : 'Use your location to find nearby stores'}
+                  </p>
+                </CardContent>
+              </Card>
+            )
           )}
         </div>
       </div>
